@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>잠금화면 단어장</title>
+<style>
+:root{--bg:#f3f5f2;--ink:#1d2b26;--sub:#5d6b65;--line:#cfd8d3;--acc:#1f6f5c;--card:#fff}
+@media (prefers-color-scheme:dark){:root{--bg:#121816;--ink:#e6efeb;--sub:#97a6a0;--line:#2c3a35;--acc:#5fc7a9;--card:#1a2420}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans KR","Noto Sans CJK JP",system-ui,sans-serif;line-height:1.55;padding:16px;max-width:720px;margin-inline:auto}
+h1{font-size:1.4rem;margin:8px 0 4px}
+p.s{color:var(--sub);margin:0 0 16px;font-size:.92rem}
+textarea{width:100%;height:200px;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font:inherit;font-size:1rem}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin:12px 0}
+select,button{font:inherit;padding:10px 14px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink)}
+button.p{background:var(--acc);color:#fff;border-color:var(--acc);font-weight:700}
+#out{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-top:12px}
+#out canvas{width:100%;height:auto;border-radius:8px;border:1px solid var(--line)}
+ol{padding-left:20px;color:var(--sub);font-size:.92rem}
+</style>
+</head>
+<body>
+<h1>잠금화면 단어장</h1>
+<p class="s">한 줄에 하나씩 <b>단어 | 뜻 | 예문</b> 형식으로 적으세요. 뜻과 예문은 생략해도 돼요. 입력한 내용은 이 기기에 자동 저장돼요.</p>
+<div class="row"><select id="y"></select>년 <select id="mo"></select>월 <select id="d"></select>일</div>
+<div id="days" class="row" style="margin-top:0"></div>
+<textarea id="in" placeholder="ephemeral | 덧없는, 짧은 | Fame is ephemeral.&#10;勉強 | 공부 | 毎日勉強します。&#10;ubiquitous | 어디에나 있는"></textarea>
+<div class="row">
+<label>대상 <select id="sc"><option value="1">선택한 날짜</option><option value="all">전체 날짜</option></select></label>
+<label>카드당 단어 수
+<select id="n"><option>1</option><option selected>3</option><option>5</option></select></label>
+<button class="p" id="gen">카드 만들기</button>
+<button id="dl">전체 저장</button>
+</div>
+<div id="msg" class="s"></div>
+<div id="out"></div>
+<h2 style="font-size:1.05rem;margin-top:24px">잠금화면에 적용하는 방법</h2>
+<ol>
+<li>저장한 이미지가 갤러리에 들어가면, 설정 &gt; 배경화면 및 스타일 &gt; 배경화면 변경으로 이동해요.</li>
+<li>갤러리에서 카드 이미지를 여러 장 선택해 잠금화면으로 지정해요.</li>
+<li>여러 장을 고르면 자동 전환 옵션이 나와요. 메뉴 이름은 One UI 버전에 따라 조금 달라요.</li>
+</ol>
+<script>
+const $=id=>document.getElementById(id),W=1080,H=2340,KEY='lockvocab';
+const now=new Date(),y=$('y'),mo=$('mo'),d=$('d');
+const p2=v=>String(v).padStart(2,'0'),dk=()=>`${y.value}-${p2(mo.value)}-${p2(d.value)}`;
+for(let i=now.getFullYear()-2;i<=now.getFullYear()+1;i++)y.add(new Option(i,i));
+for(let i=1;i<=12;i++)mo.add(new Option(i,i));
+function fillDays(keep){const n=new Date(+y.value,+mo.value,0).getDate();d.innerHTML='';for(let i=1;i<=n;i++)d.add(new Option(i,i));d.value=Math.min(keep,n)}
+y.value=now.getFullYear();mo.value=now.getMonth()+1;fillDays(now.getDate());
+let store={};
+try{const r=localStorage.getItem(KEY);if(r){try{store=JSON.parse(r);if(!store||typeof store!=='object')throw 0}catch(e){store={[dk()]:r}}}}catch(e){}
+function chips(){const c=$('days');c.innerHTML='';Object.keys(store).sort().reverse().forEach(k=>{const[a,b,e]=k.split('-').map(Number),n=store[k].split('\n').filter(s=>s.trim()).length;
+const bt=document.createElement('button');bt.textContent=`${b}/${e} (${n})`;bt.style.padding='4px 10px';bt.onclick=()=>{y.value=a;mo.value=b;fillDays(e);load()};c.appendChild(bt)})}
+function load(){$('in').value=store[dk()]||'';chips()}
+$('in').addEventListener('input',()=>{const v=$('in').value;if(v.trim())store[dk()]=v;else delete store[dk()];try{localStorage.setItem(KEY,JSON.stringify(store))}catch(e){}chips()});
+y.onchange=mo.onchange=()=>{fillDays(+d.value);load()};d.onchange=load;
+function lines(){const ks=$('sc').value==='1'?[dk()]:Object.keys(store).sort();return ks.map(k=>store[k]||'').join('\n')}
+load();
+const FONT='"Noto Sans KR","Noto Sans CJK JP","Noto Sans JP",sans-serif';
+function parse(){return lines().split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{const p=l.split('|').map(s=>s.trim());return{w:p[0],m:p[1]||'',e:p[2]||''}})}
+function wrap(ctx,t,max){const tk=t.match(/[\u3000-\u9fff\uac00-\ud7af]|[^\s\u3000-\u9fff\uac00-\ud7af]+|\s+/g)||[];const out=[];let cur='';
+for(const k of tk){const x=cur+k;if(ctx.measureText(x).width>max&&cur.trim()){out.push(cur.trim());cur=k.trim()?k:''}else cur=x}
+if(cur.trim())out.push(cur.trim());return out}
+function layout(ctx,items,s){const specs=[['700',92*s,'#ffffff'],['400',54*s,'#a9d9c9'],['400',40*s,'#8a9a94']],blocks=[];let total=0;
+items.forEach((it,i)=>{const b=[];['w','m','e'].forEach((k,j)=>{if(!it[k])return;const[wt,sz,col]=specs[j];ctx.font=`${wt} ${sz}px ${FONT}`;
+wrap(ctx,it[k],W-180).forEach(t=>{b.push({t,font:ctx.font,col,h:sz*1.35})})});
+const bh=b.reduce((a,x)=>a+x.h,0);blocks.push({b,bh});total+=bh+(i?80*s:0)});return{blocks,total}}
+function render(items){const c=document.createElement('canvas');c.width=W;c.height=H;const ctx=c.getContext('2d');
+ctx.fillStyle='#10201b';ctx.fillRect(0,0,W,H);
+const top=H*0.34,avail=H*0.56;let s=1,L;
+do{L=layout(ctx,items,s);s*=.92}while(L.total>avail&&s>.4);s/=.92;
+let y=top+Math.max(0,(avail-L.total)/2);ctx.textAlign='center';ctx.textBaseline='top';
+L.blocks.forEach((bl,i)=>{if(i){y+=80*s;ctx.fillStyle='#2f4a40';ctx.fillRect(W/2-60,y-40*s,120,3)}
+bl.b.forEach(l=>{ctx.font=l.font;ctx.fillStyle=l.col;ctx.fillText(l.t,W/2,y);y+=l.h})});return c}
+$('gen').onclick=()=>{const it=parse(),n=+$('n').value,o=$('out');o.innerHTML='';
+if(!it.length){$('msg').textContent='단어를 먼저 입력해 주세요.';return}
+for(let i=0;i<it.length;i+=n)o.appendChild(render(it.slice(i,i+n)));
+$('msg').textContent=`카드 ${o.children.length}장을 만들었어요.`};
+$('dl').onclick=async()=>{const cs=[...$('out').children];if(!cs.length){$('msg').textContent='카드를 먼저 만들어 주세요.';return}
+if(window.Android){let ok=0;cs.forEach((c,i)=>{if(Android.save(`lock_${Date.now()}_${p2(i+1)}.png`,c.toDataURL('image/png').split(',')[1]))ok++});$('msg').textContent=`갤러리에 ${ok}장 저장했어요. (사진 > LockVocab 폴더)`;return}
+for(let i=0;i<cs.length;i++){await new Promise(r=>cs[i].toBlob(b=>{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`lock_${String(i+1).padStart(2,'0')}.png`;a.click();setTimeout(r,500)}))}
+$('msg').textContent='저장했어요. 다운로드 폴더나 갤러리를 확인하세요.'};
+</script>
+</body>
+</html>
