@@ -28,6 +28,12 @@ public class MainActivity extends Activity {
 
     class Bridge {
         @JavascriptInterface
+        public void setWords(String json) {
+            getSharedPreferences("w", 0).edit().putString("words", json).apply();
+            WordWidget.refresh(MainActivity.this);
+        }
+
+        @JavascriptInterface
         public boolean save(String name, String b64) {
             try {
                 byte[] data = Base64.decode(b64, Base64.DEFAULT);

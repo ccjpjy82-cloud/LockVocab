@@ -54,10 +54,11 @@ try{const r=localStorage.getItem(KEY);if(r){try{store=JSON.parse(r);if(!store||t
 function chips(){const c=$('days');c.innerHTML='';Object.keys(store).sort().reverse().forEach(k=>{const[a,b,e]=k.split('-').map(Number),n=store[k].split('\n').filter(s=>s.trim()).length;
 const bt=document.createElement('button');bt.textContent=`${b}/${e} (${n})`;bt.style.padding='4px 10px';bt.onclick=()=>{y.value=a;mo.value=b;fillDays(e);load()};c.appendChild(bt)})}
 function load(){$('in').value=store[dk()]||'';chips()}
-$('in').addEventListener('input',()=>{const v=$('in').value;if(v.trim())store[dk()]=v;else delete store[dk()];try{localStorage.setItem(KEY,JSON.stringify(store))}catch(e){}chips()});
+$('in').addEventListener('input',()=>{const v=$('in').value;if(v.trim())store[dk()]=v;else delete store[dk()];try{localStorage.setItem(KEY,JSON.stringify(store))}catch(e){}chips();sync()});
 y.onchange=mo.onchange=()=>{fillDays(+d.value);load()};d.onchange=load;
 function lines(){const ks=$('sc').value==='1'?[dk()]:Object.keys(store).sort();return ks.map(k=>store[k]||'').join('\n')}
-load();
+function sync(){try{if(window.Android&&Android.setWords)Android.setWords(JSON.stringify(store))}catch(e){}}
+sync();load();
 const FONT='"Noto Sans KR","Noto Sans CJK JP","Noto Sans JP",sans-serif';
 function parse(){return lines().split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{const p=l.split('|').map(s=>s.trim());return{w:p[0],m:p[1]||'',e:p[2]||''}})}
 function wrap(ctx,t,max){const tk=t.match(/[\u3000-\u9fff\uac00-\ud7af]|[^\s\u3000-\u9fff\uac00-\ud7af]+|\s+/g)||[];const out=[];let cur='';
