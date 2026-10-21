@@ -20,17 +20,27 @@ select,button{font:inherit;padding:10px 14px;border-radius:8px;border:1px solid 
 button.p{background:var(--acc);color:#fff;border-color:var(--acc);font-weight:700}
 #out{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-top:12px}
 #out canvas{width:100%;height:auto;border-radius:8px;border:1px solid var(--line)}
+#rem{white-space:pre-wrap;border:1px dashed var(--line);border-radius:8px;padding:10px 12px;margin-bottom:8px;color:var(--sub);font-size:.95rem}
+#rem:empty{display:none}
+details{margin:10px 0}
+#url{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font:inherit;margin:8px 0}
 ol{padding-left:20px;color:var(--sub);font-size:.92rem}
 </style>
 </head>
 <body>
-<h1>잠금화면 단어장 <small style="font-weight:400;color:var(--sub)">v6</small></h1>
+<h1>잠금화면 단어장 <small style="font-weight:400;color:var(--sub)">v7</small></h1>
 <p class="s">한 줄에 하나씩 <b>단어 | 뜻 | 예문</b> 형식으로 적으세요. 뜻과 예문은 생략해도 돼요. 입력한 내용은 이 기기에 자동 저장돼요.</p>
 <div class="row"><select id="y"></select>년 <select id="mo"></select>월 <select id="d"></select>일</div>
 <div id="days" class="row" style="margin-top:0"></div>
+<div id="rem"></div>
 <div id="in" contenteditable="true" data-ph="ephemeral | 덧없는 | Fame is ephemeral."></div>
 <div class="row"><button id="addimg">📷 사진 추가</button><input type="file" id="file" accept="image/*" multiple hidden></div>
 <div id="pmsg" class="s"></div>
+<details><summary>PC 시트 연결 (구글 스프레드시트)</summary>
+<p class="s">시트의 첫 줄에 <b>날짜 | 단어 | 뜻 | 예문</b>을 적고, 아래로 단어를 입력해요. 날짜를 비워 두면 위 줄의 날짜가 이어져요. 시트를 CSV 형식으로 웹에 게시한 주소를 아래에 붙여넣으세요.</p>
+<input id="url" placeholder="https://docs.google.com/spreadsheets/d/e/.../pub?output=csv">
+<button id="fetch">지금 가져오기</button> <span id="smsg" class="s"></span>
+</details>
 <div class="row">
 <label>대상 <select id="sc"><option value="1">선택한 날짜</option><option value="all">전체 날짜</option></select></label>
 <label>카드당 단어 수
@@ -56,7 +66,7 @@ function fillDays(keep){const n=new Date(+y.value,+mo.value,0).getDate();d.inner
 y.value=now.getFullYear();mo.value=now.getMonth()+1;fillDays(now.getDate());
 let store={};
 try{const r=localStorage.getItem(KEY);if(r){try{store=JSON.parse(r);if(!store||typeof store!=='object')throw 0}catch(e){store={[dk()]:r}}}}catch(e){}
-function chips(){const c=$('days');c.innerHTML='';Object.keys(store).sort().reverse().forEach(k=>{const[a,b,e]=k.split('-').map(Number),n=store[k].split('\n').filter(s=>s.trim()).length;
+function chips(){const c=$('days');c.innerHTML='';allKeys().sort().reverse().forEach(k=>{const[a,b,e]=k.split('-').map(Number),n=allText(k).split('\n').filter(s=>s.trim()).length;
 const bt=document.createElement('button');bt.textContent=`${b}/${e} (${n})`;bt.style.padding='4px 10px';bt.onclick=()=>{y.value=a;mo.value=b;fillDays(e);load()};c.appendChild(bt)})}
 function shrink(f){return new Promise((res,rej)=>{const fr=new FileReader();fr.onerror=()=>rej(new Error('파일을 읽지 못했어요'));fr.onload=()=>{const im=new Image();im.onload=()=>{try{const s=Math.min(1,800/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*s);c.height=Math.round(im.height*s);c.getContext('2d').drawImage(im,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',.75))}catch(e){rej(e)}};im.onerror=()=>rej(new Error('이 사진 형식은 읽을 수 없어요'));im.src=fr.result};fr.readAsDataURL(f)})}
 $('addimg').onclick=()=>{if(window.Android&&Android.pickImages){$('pmsg').textContent='갤러리를 여는 중...';Android.pickImages()}else $('file').click()};
@@ -82,13 +92,33 @@ $('addimg').onmousedown=e=>e.preventDefault();
 ed.addEventListener('paste',e=>{e.preventDefault();document.execCommand('insertText',false,e.clipboardData.getData('text/plain'))});
 ed.addEventListener('click',e=>{const im=e.target;if(im.tagName!=='IMG')return;if(im.dataset.s){im.remove();persist();chips();sync();photoSync()}else{im.dataset.s=1;im.className='del';$('pmsg').textContent='한 번 더 누르면 사진이 지워져요';setTimeout(()=>{delete im.dataset.s;im.className=''},2500)}});
 $('file').onchange=async e=>{const pm=$('pmsg'),fs=[...e.target.files];pm.textContent=fs.length?`사진 ${fs.length}장 처리 중...`:'선택된 사진이 없어요';let n=0;for(const f of fs){try{insertImg(await shrink(f));n++}catch(err){pm.textContent='실패: '+err.message}}e.target.value='';if(n)pm.textContent=`${n}장 넣었어요`};
-function load(){const k=dk();ed.innerHTML=htm[k]!==undefined?htm[k]:esc(store[k]||'').replace(/\n/g,'<br>');pc=ed.querySelectorAll('img').length;chips()}
+function load(){const k=dk();ed.innerHTML=htm[k]!==undefined?htm[k]:esc(store[k]||'').replace(/\n/g,'<br>');pc=ed.querySelectorAll('img').length;showRem();chips()}
 ed.addEventListener('input',()=>{persist();chips();sync();if(ed.querySelectorAll('img').length!==pc)photoSync()});
 y.onchange=mo.onchange=()=>{fillDays(+d.value);load()};d.onchange=load;
-function lines(){const ks=$('sc').value==='1'?[dk()]:Object.keys(store).sort();return ks.map(k=>store[k]||'').join('\n')}
-function sync(){try{if(window.Android&&Android.setWords)Android.setWords(JSON.stringify(store))}catch(e){}}
+function lines(){const ks=$('sc').value==='1'?[dk()]:allKeys();return ks.map(k=>allText(k)).join('\n')}
+let remote={};try{remote=JSON.parse(localStorage.getItem('lockvocab_remote')||'{}')}catch(e){}
+const allKeys=()=>[...new Set([...Object.keys(store),...Object.keys(remote)])].sort();
+const allText=k=>[remote[k],store[k]].filter(Boolean).join('\n');
+function showRem(){$('rem').textContent=remote[dk()]?'📄 시트에서 가져온 단어\n'+remote[dk()]:''}
+function sync(){try{if(window.Android&&Android.setWords){const m={};allKeys().forEach(k=>m[k]=allText(k));Android.setWords(JSON.stringify(m))}}catch(e){}}
+function parseCSV(t){const rows=[];let row=[],f='',q=false;for(let i=0;i<t.length;i++){const c=t[i];if(q){if(c=='"'){if(t[i+1]=='"'){f+='"';i++}else q=false}else f+=c}else if(c=='"')q=true;else if(c==','){row.push(f);f=''}else if(c=='\n'||c=='\r'){if(c=='\r'&&t[i+1]=='\n')i++;row.push(f);rows.push(row);row=[];f=''}else f+=c}if(f!==''||row.length){row.push(f);rows.push(row)}return rows}
+function parseDate(s){const n=(String(s).match(/\d+/g)||[]).map(Number);let y,m,d;if(n.length>=3){if(n[0]>31)[y,m,d]=n;else if(n[2]>31)[m,d,y]=n;else return null}else if(n.length==2){y=new Date().getFullYear();[m,d]=n}else return null;if(m<1||m>12||d<1||d>31)return null;return `${y}-${p2(m)}-${p2(d)}`}
+function applySheet(text){if(/^\s*</.test(text))throw new Error('html');const rows=parseCSV(text.replace(/^\uFEFF/,'')),r={};let cur=null;
+for(const c of rows){const a=(c[0]||'').trim();if(a){const dt=parseDate(a);if(!dt)continue;cur=dt}if(!cur)continue;
+const cells=c.slice(1).map(x=>x.trim());while(cells.length&&!cells[cells.length-1])cells.pop();if(!cells.some(Boolean))continue;
+r[cur]=(r[cur]?r[cur]+'\n':'')+cells.join(' | ')}
+remote=r;try{localStorage.setItem('lockvocab_remote',JSON.stringify(r))}catch(e){}showRem();chips();sync()}
+function fetchSheet(){const u=($('url').value||'').trim();if(!u){$('smsg').textContent='시트 주소를 먼저 넣어 주세요';return}
+try{localStorage.setItem('lockvocab_url',u)}catch(e){}
+$('smsg').textContent='가져오는 중...';
+if(window.Android&&Android.fetchUrl)Android.fetchUrl(u);else fetch(u).then(r=>r.text()).then(t=>window.onSheet(t)).catch(()=>{$('smsg').textContent='가져오지 못했어요 (앱에서 사용해 주세요)'})}
+window.onSheet=t=>{try{applySheet(t);$('smsg').textContent=`가져왔어요 (${Object.keys(remote).length}일치)`}catch(e){$('smsg').textContent='게시된 CSV 주소가 맞는지 확인해 주세요'}};
+window.onSheetErr=t=>{$('smsg').textContent='가져오지 못했어요: '+t};
 Object.keys(htm).forEach(k=>{const l=srcsOf(htm[k]);if(l.length)syncPhotos(k,l)});
-sync();load();
+$('url').value=(()=>{try{return localStorage.getItem('lockvocab_url')||''}catch(e){return ''}})();
+$('fetch').onclick=fetchSheet;
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&$('url').value.trim())fetchSheet()});
+sync();load();if($('url').value.trim())fetchSheet();
 const FONT='"Noto Sans KR","Noto Sans CJK JP","Noto Sans JP",sans-serif';
 function parse(){return lines().split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{const p=l.split('|').map(s=>s.trim());return{w:p[0],m:p[1]||'',e:p[2]||''}})}
 function wrap(ctx,t,max){const tk=t.match(/[\u3000-\u9fff\uac00-\ud7af]|[^\s\u3000-\u9fff\uac00-\ud7af]+|\s+/g)||[];const out=[];let cur='';

@@ -20,7 +20,10 @@ import android.webkit.WebViewClient;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import org.json.JSONArray;
+import org.json.JSONObject;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
@@ -127,6 +130,31 @@ public class MainActivity extends Activity {
                     js("window.onNativeMsg('갤러리를 열 수 없어요')");
                 }
             });
+        }
+
+        @JavascriptInterface
+        public void fetchUrl(final String u) {
+            new Thread(() -> {
+                try {
+                    HttpURLConnection h = (HttpURLConnection) new URL(u).openConnection();
+                    h.setConnectTimeout(10000);
+                    h.setReadTimeout(15000);
+                    h.setInstanceFollowRedirects(true);
+                    int code = h.getResponseCode();
+                    if (code != 200) {
+                        js("window.onSheetErr(" + JSONObject.quote("HTTP " + code) + ")");
+                        return;
+                    }
+                    try (InputStream in = h.getInputStream(); ByteArrayOutputStream bo = new ByteArrayOutputStream()) {
+                        byte[] buf = new byte[8192];
+                        int n;
+                        while ((n = in.read(buf)) > 0) bo.write(buf, 0, n);
+                        js("window.onSheet(" + JSONObject.quote(bo.toString("UTF-8")) + ")");
+                    }
+                } catch (Exception e) {
+                    js("window.onSheetErr(" + JSONObject.quote(String.valueOf(e.getMessage())) + ")");
+                }
+            }).start();
         }
 
         @JavascriptInterface
