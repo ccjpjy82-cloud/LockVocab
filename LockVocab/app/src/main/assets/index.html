@@ -24,7 +24,7 @@ ol{padding-left:20px;color:var(--sub);font-size:.92rem}
 </style>
 </head>
 <body>
-<h1>잠금화면 단어장</h1>
+<h1>잠금화면 단어장 <small style="font-weight:400;color:var(--sub)">v5</small></h1>
 <p class="s">한 줄에 하나씩 <b>단어 | 뜻 | 예문</b> 형식으로 적으세요. 뜻과 예문은 생략해도 돼요. 입력한 내용은 이 기기에 자동 저장돼요.</p>
 <div class="row"><select id="y"></select>년 <select id="mo"></select>월 <select id="d"></select>일</div>
 <div id="days" class="row" style="margin-top:0"></div>
@@ -59,7 +59,9 @@ try{const r=localStorage.getItem(KEY);if(r){try{store=JSON.parse(r);if(!store||t
 function chips(){const c=$('days');c.innerHTML='';Object.keys(store).sort().reverse().forEach(k=>{const[a,b,e]=k.split('-').map(Number),n=store[k].split('\n').filter(s=>s.trim()).length;
 const bt=document.createElement('button');bt.textContent=`${b}/${e} (${n})`;bt.style.padding='4px 10px';bt.onclick=()=>{y.value=a;mo.value=b;fillDays(e);load()};c.appendChild(bt)})}
 function shrink(f){return new Promise((res,rej)=>{const fr=new FileReader();fr.onerror=()=>rej(new Error('파일을 읽지 못했어요'));fr.onload=()=>{const im=new Image();im.onload=()=>{try{const s=Math.min(1,800/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*s);c.height=Math.round(im.height*s);c.getContext('2d').drawImage(im,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',.75))}catch(e){rej(e)}};im.onerror=()=>rej(new Error('이 사진 형식은 읽을 수 없어요'));im.src=fr.result};fr.readAsDataURL(f)})}
-$('addimg').onclick=()=>$('file').click();
+$('addimg').onclick=()=>{if(window.Android&&Android.pickImages){$('pmsg').textContent='갤러리를 여는 중...';Android.pickImages()}else $('file').click()};
+window.onNativeImage=u=>insertImg(u);
+window.onNativeMsg=t=>{$('pmsg').textContent=t};
 const ed=$('in');let rng=null,htm={};
 try{htm=JSON.parse(localStorage.getItem('lockvocab_html')||'{}')}catch(e){}
 const esc=t=>t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
