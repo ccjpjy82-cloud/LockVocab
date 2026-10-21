@@ -17,6 +17,12 @@ select,button{font:inherit;padding:10px 14px;border-radius:8px;border:1px solid 
 button.p{background:var(--acc);color:#fff;border-color:var(--acc);font-weight:700}
 #out{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-top:12px}
 #out canvas{width:100%;height:auto;border-radius:8px;border:1px solid var(--line)}
+#imgs{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+#imgs div{position:relative}
+#imgs div:has(.big){width:100%}
+#imgs img{width:96px;height:96px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
+#imgs img.big{width:100%;height:auto}
+#imgs button{position:absolute;top:4px;right:4px;padding:2px 8px;border-radius:12px}
 ol{padding-left:20px;color:var(--sub);font-size:.92rem}
 </style>
 </head>
@@ -26,6 +32,8 @@ ol{padding-left:20px;color:var(--sub);font-size:.92rem}
 <div class="row"><select id="y"></select>년 <select id="mo"></select>월 <select id="d"></select>일</div>
 <div id="days" class="row" style="margin-top:0"></div>
 <textarea id="in" placeholder="ephemeral | 덧없는, 짧은 | Fame is ephemeral.&#10;勉強 | 공부 | 毎日勉強します。&#10;ubiquitous | 어디에나 있는"></textarea>
+<div class="row"><button id="addimg">📷 사진 추가</button><input type="file" id="file" accept="image/*" multiple hidden></div>
+<div id="imgs"></div>
 <div class="row">
 <label>대상 <select id="sc"><option value="1">선택한 날짜</option><option value="all">전체 날짜</option></select></label>
 <label>카드당 단어 수
@@ -53,7 +61,13 @@ let store={};
 try{const r=localStorage.getItem(KEY);if(r){try{store=JSON.parse(r);if(!store||typeof store!=='object')throw 0}catch(e){store={[dk()]:r}}}}catch(e){}
 function chips(){const c=$('days');c.innerHTML='';Object.keys(store).sort().reverse().forEach(k=>{const[a,b,e]=k.split('-').map(Number),n=store[k].split('\n').filter(s=>s.trim()).length;
 const bt=document.createElement('button');bt.textContent=`${b}/${e} (${n})`;bt.style.padding='4px 10px';bt.onclick=()=>{y.value=a;mo.value=b;fillDays(e);load()};c.appendChild(bt)})}
-function load(){$('in').value=store[dk()]||'';chips()}
+let imgs={};try{imgs=JSON.parse(localStorage.getItem('lockvocab_img')||'{}')}catch(e){}
+function saveImgs(){try{localStorage.setItem('lockvocab_img',JSON.stringify(imgs));return true}catch(e){$('msg').textContent='저장 공간이 가득 찼어요. 사진을 지워 주세요.';return false}}
+function renderImgs(){const c=$('imgs');c.innerHTML='';(imgs[dk()]||[]).forEach((u,i)=>{const w=document.createElement('div'),im=new Image(),x=document.createElement('button');im.src=u;im.onclick=()=>im.classList.toggle('big');x.textContent='×';x.onclick=()=>{if(x.dataset.s){imgs[dk()].splice(i,1);if(!imgs[dk()].length)delete imgs[dk()];saveImgs();renderImgs()}else{x.dataset.s=1;x.textContent='삭제?';setTimeout(()=>{x.dataset.s='';x.textContent='×'},2500)}};w.append(im,x);c.appendChild(w)})}
+function shrink(f){return new Promise(r=>{const u=URL.createObjectURL(f),im=new Image();im.onload=()=>{const s=Math.min(1,800/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*s);c.height=Math.round(im.height*s);c.getContext('2d').drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);r(c.toDataURL('image/jpeg',.75))};im.onerror=()=>r(null);im.src=u})}
+$('addimg').onclick=()=>$('file').click();
+$('file').onchange=async e=>{const k=dk();for(const f of e.target.files){const u=await shrink(f);if(!u)continue;(imgs[k]=imgs[k]||[]).push(u);if(!saveImgs()){imgs[k].pop();break}}e.target.value='';renderImgs()};
+function load(){$('in').value=store[dk()]||'';chips();renderImgs()}
 $('in').addEventListener('input',()=>{const v=$('in').value;if(v.trim())store[dk()]=v;else delete store[dk()];try{localStorage.setItem(KEY,JSON.stringify(store))}catch(e){}chips();sync()});
 y.onchange=mo.onchange=()=>{fillDays(+d.value);load()};d.onchange=load;
 function lines(){const ks=$('sc').value==='1'?[dk()]:Object.keys(store).sort();return ks.map(k=>store[k]||'').join('\n')}
