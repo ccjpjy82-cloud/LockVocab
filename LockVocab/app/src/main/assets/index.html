@@ -11,18 +11,15 @@
 body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans KR","Noto Sans CJK JP",system-ui,sans-serif;line-height:1.55;padding:16px;max-width:720px;margin-inline:auto}
 h1{font-size:1.4rem;margin:8px 0 4px}
 p.s{color:var(--sub);margin:0 0 16px;font-size:.92rem}
-textarea{width:100%;height:200px;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font:inherit;font-size:1rem}
+#in{min-height:200px;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font-size:1rem;overflow-wrap:anywhere;outline:none}
+#in:empty::before{content:attr(data-ph);color:var(--sub)}
+#in img{max-width:100%;height:auto;border-radius:8px;display:block;margin:6px 0}
+#in img.del{outline:3px solid #e5484d}
 .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin:12px 0}
 select,button{font:inherit;padding:10px 14px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink)}
 button.p{background:var(--acc);color:#fff;border-color:var(--acc);font-weight:700}
 #out{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-top:12px}
 #out canvas{width:100%;height:auto;border-radius:8px;border:1px solid var(--line)}
-#imgs{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
-#imgs div{position:relative}
-#imgs div:has(.big){width:100%}
-#imgs img{width:96px;height:96px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
-#imgs img.big{width:100%;height:auto}
-#imgs button{position:absolute;top:4px;right:4px;padding:2px 8px;border-radius:12px}
 ol{padding-left:20px;color:var(--sub);font-size:.92rem}
 </style>
 </head>
@@ -31,10 +28,9 @@ ol{padding-left:20px;color:var(--sub);font-size:.92rem}
 <p class="s">한 줄에 하나씩 <b>단어 | 뜻 | 예문</b> 형식으로 적으세요. 뜻과 예문은 생략해도 돼요. 입력한 내용은 이 기기에 자동 저장돼요.</p>
 <div class="row"><select id="y"></select>년 <select id="mo"></select>월 <select id="d"></select>일</div>
 <div id="days" class="row" style="margin-top:0"></div>
-<textarea id="in" placeholder="ephemeral | 덧없는, 짧은 | Fame is ephemeral.&#10;勉強 | 공부 | 毎日勉強します。&#10;ubiquitous | 어디에나 있는"></textarea>
+<div id="in" contenteditable="true" data-ph="ephemeral | 덧없는 | Fame is ephemeral."></div>
 <div class="row"><button id="addimg">📷 사진 추가</button><input type="file" id="file" accept="image/*" multiple hidden></div>
 <div id="pmsg" class="s"></div>
-<div id="imgs"></div>
 <div class="row">
 <label>대상 <select id="sc"><option value="1">선택한 날짜</option><option value="all">전체 날짜</option></select></label>
 <label>카드당 단어 수
@@ -62,14 +58,26 @@ let store={};
 try{const r=localStorage.getItem(KEY);if(r){try{store=JSON.parse(r);if(!store||typeof store!=='object')throw 0}catch(e){store={[dk()]:r}}}}catch(e){}
 function chips(){const c=$('days');c.innerHTML='';Object.keys(store).sort().reverse().forEach(k=>{const[a,b,e]=k.split('-').map(Number),n=store[k].split('\n').filter(s=>s.trim()).length;
 const bt=document.createElement('button');bt.textContent=`${b}/${e} (${n})`;bt.style.padding='4px 10px';bt.onclick=()=>{y.value=a;mo.value=b;fillDays(e);load()};c.appendChild(bt)})}
-let imgs={};try{imgs=JSON.parse(localStorage.getItem('lockvocab_img')||'{}')}catch(e){}
-function saveImgs(){try{localStorage.setItem('lockvocab_img',JSON.stringify(imgs));return true}catch(e){$('pmsg').textContent='저장 공간이 가득 찼어요. 사진을 지워 주세요.';return false}}
-function renderImgs(){const c=$('imgs');c.innerHTML='';(imgs[dk()]||[]).forEach((u,i)=>{const w=document.createElement('div'),im=new Image(),x=document.createElement('button');im.src=u;im.onclick=()=>im.classList.toggle('big');x.textContent='×';x.onclick=()=>{if(x.dataset.s){imgs[dk()].splice(i,1);if(!imgs[dk()].length)delete imgs[dk()];saveImgs();renderImgs()}else{x.dataset.s=1;x.textContent='삭제?';setTimeout(()=>{x.dataset.s='';x.textContent='×'},2500)}};w.append(im,x);c.appendChild(w)})}
 function shrink(f){return new Promise((res,rej)=>{const fr=new FileReader();fr.onerror=()=>rej(new Error('파일을 읽지 못했어요'));fr.onload=()=>{const im=new Image();im.onload=()=>{try{const s=Math.min(1,800/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*s);c.height=Math.round(im.height*s);c.getContext('2d').drawImage(im,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',.75))}catch(e){rej(e)}};im.onerror=()=>rej(new Error('이 사진 형식은 읽을 수 없어요'));im.src=fr.result};fr.readAsDataURL(f)})}
 $('addimg').onclick=()=>$('file').click();
-$('file').onchange=async e=>{const k=dk(),pm=$('pmsg'),fs=[...e.target.files];pm.textContent=fs.length?`사진 ${fs.length}장 처리 중...`:'선택된 사진이 없어요';let n=0;for(const f of fs){try{const u=await shrink(f);(imgs[k]=imgs[k]||[]).push(u);if(!saveImgs()){imgs[k].pop();break}n++}catch(err){pm.textContent='실패: '+err.message}}e.target.value='';renderImgs();if(n)pm.textContent=`${n}장 추가했어요`};
-function load(){$('in').value=store[dk()]||'';chips();renderImgs()}
-$('in').addEventListener('input',()=>{const v=$('in').value;if(v.trim())store[dk()]=v;else delete store[dk()];try{localStorage.setItem(KEY,JSON.stringify(store))}catch(e){}chips();sync()});
+const ed=$('in');let rng=null,htm={};
+try{htm=JSON.parse(localStorage.getItem('lockvocab_html')||'{}')}catch(e){}
+const esc=t=>t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+document.addEventListener('selectionchange',()=>{const s=getSelection();if(s.rangeCount&&ed.contains(s.anchorNode))rng=s.getRangeAt(0).cloneRange()});
+function cleanHtml(){const c=ed.cloneNode(true);c.querySelectorAll('img').forEach(i=>{i.removeAttribute('class');i.removeAttribute('data-s')});return c.innerHTML}
+function persist(){const k=dk(),t=ed.innerText,has=!!ed.querySelector('img');
+if(t.trim())store[k]=t;else delete store[k];
+if(t.trim()||has)htm[k]=cleanHtml();else delete htm[k];
+try{localStorage.setItem(KEY,JSON.stringify(store));localStorage.setItem('lockvocab_html',JSON.stringify(htm))}catch(e){$('pmsg').textContent='저장 공간이 가득 찼어요. 사진을 지워 주세요.'}}
+function insertImg(u){const im=new Image();im.src=u;ed.focus();const s=getSelection();s.removeAllRanges();
+if(rng&&ed.contains(rng.startContainer))s.addRange(rng);else{const q=document.createRange();q.selectNodeContents(ed);q.collapse(false);s.addRange(q)}
+const r=s.getRangeAt(0);r.deleteContents();const br=document.createElement('br');r.insertNode(br);r.insertNode(im);r.setStartAfter(br);r.collapse(true);s.removeAllRanges();s.addRange(r);rng=r.cloneRange();persist();chips();sync()}
+$('addimg').onmousedown=e=>e.preventDefault();
+ed.addEventListener('paste',e=>{e.preventDefault();document.execCommand('insertText',false,e.clipboardData.getData('text/plain'))});
+ed.addEventListener('click',e=>{const im=e.target;if(im.tagName!=='IMG')return;if(im.dataset.s){im.remove();persist();chips();sync()}else{im.dataset.s=1;im.className='del';$('pmsg').textContent='한 번 더 누르면 사진이 지워져요';setTimeout(()=>{delete im.dataset.s;im.className=''},2500)}});
+$('file').onchange=async e=>{const pm=$('pmsg'),fs=[...e.target.files];pm.textContent=fs.length?`사진 ${fs.length}장 처리 중...`:'선택된 사진이 없어요';let n=0;for(const f of fs){try{insertImg(await shrink(f));n++}catch(err){pm.textContent='실패: '+err.message}}e.target.value='';if(n)pm.textContent=`${n}장 넣었어요`};
+function load(){const k=dk();ed.innerHTML=htm[k]!==undefined?htm[k]:esc(store[k]||'').replace(/\n/g,'<br>');chips()}
+ed.addEventListener('input',()=>{persist();chips();sync()});
 y.onchange=mo.onchange=()=>{fillDays(+d.value);load()};d.onchange=load;
 function lines(){const ks=$('sc').value==='1'?[dk()]:Object.keys(store).sort();return ks.map(k=>store[k]||'').join('\n')}
 function sync(){try{if(window.Android&&Android.setWords)Android.setWords(JSON.stringify(store))}catch(e){}}
