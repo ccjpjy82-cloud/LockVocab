@@ -33,6 +33,7 @@ ol{padding-left:20px;color:var(--sub);font-size:.92rem}
 <div id="days" class="row" style="margin-top:0"></div>
 <textarea id="in" placeholder="ephemeral | 덧없는, 짧은 | Fame is ephemeral.&#10;勉強 | 공부 | 毎日勉強します。&#10;ubiquitous | 어디에나 있는"></textarea>
 <div class="row"><button id="addimg">📷 사진 추가</button><input type="file" id="file" accept="image/*" multiple hidden></div>
+<div id="pmsg" class="s"></div>
 <div id="imgs"></div>
 <div class="row">
 <label>대상 <select id="sc"><option value="1">선택한 날짜</option><option value="all">전체 날짜</option></select></label>
@@ -62,11 +63,11 @@ try{const r=localStorage.getItem(KEY);if(r){try{store=JSON.parse(r);if(!store||t
 function chips(){const c=$('days');c.innerHTML='';Object.keys(store).sort().reverse().forEach(k=>{const[a,b,e]=k.split('-').map(Number),n=store[k].split('\n').filter(s=>s.trim()).length;
 const bt=document.createElement('button');bt.textContent=`${b}/${e} (${n})`;bt.style.padding='4px 10px';bt.onclick=()=>{y.value=a;mo.value=b;fillDays(e);load()};c.appendChild(bt)})}
 let imgs={};try{imgs=JSON.parse(localStorage.getItem('lockvocab_img')||'{}')}catch(e){}
-function saveImgs(){try{localStorage.setItem('lockvocab_img',JSON.stringify(imgs));return true}catch(e){$('msg').textContent='저장 공간이 가득 찼어요. 사진을 지워 주세요.';return false}}
+function saveImgs(){try{localStorage.setItem('lockvocab_img',JSON.stringify(imgs));return true}catch(e){$('pmsg').textContent='저장 공간이 가득 찼어요. 사진을 지워 주세요.';return false}}
 function renderImgs(){const c=$('imgs');c.innerHTML='';(imgs[dk()]||[]).forEach((u,i)=>{const w=document.createElement('div'),im=new Image(),x=document.createElement('button');im.src=u;im.onclick=()=>im.classList.toggle('big');x.textContent='×';x.onclick=()=>{if(x.dataset.s){imgs[dk()].splice(i,1);if(!imgs[dk()].length)delete imgs[dk()];saveImgs();renderImgs()}else{x.dataset.s=1;x.textContent='삭제?';setTimeout(()=>{x.dataset.s='';x.textContent='×'},2500)}};w.append(im,x);c.appendChild(w)})}
-function shrink(f){return new Promise(r=>{const u=URL.createObjectURL(f),im=new Image();im.onload=()=>{const s=Math.min(1,800/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*s);c.height=Math.round(im.height*s);c.getContext('2d').drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);r(c.toDataURL('image/jpeg',.75))};im.onerror=()=>r(null);im.src=u})}
+function shrink(f){return new Promise((res,rej)=>{const fr=new FileReader();fr.onerror=()=>rej(new Error('파일을 읽지 못했어요'));fr.onload=()=>{const im=new Image();im.onload=()=>{try{const s=Math.min(1,800/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*s);c.height=Math.round(im.height*s);c.getContext('2d').drawImage(im,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',.75))}catch(e){rej(e)}};im.onerror=()=>rej(new Error('이 사진 형식은 읽을 수 없어요'));im.src=fr.result};fr.readAsDataURL(f)})}
 $('addimg').onclick=()=>$('file').click();
-$('file').onchange=async e=>{const k=dk();for(const f of e.target.files){const u=await shrink(f);if(!u)continue;(imgs[k]=imgs[k]||[]).push(u);if(!saveImgs()){imgs[k].pop();break}}e.target.value='';renderImgs()};
+$('file').onchange=async e=>{const k=dk(),pm=$('pmsg'),fs=[...e.target.files];pm.textContent=fs.length?`사진 ${fs.length}장 처리 중...`:'선택된 사진이 없어요';let n=0;for(const f of fs){try{const u=await shrink(f);(imgs[k]=imgs[k]||[]).push(u);if(!saveImgs()){imgs[k].pop();break}n++}catch(err){pm.textContent='실패: '+err.message}}e.target.value='';renderImgs();if(n)pm.textContent=`${n}장 추가했어요`};
 function load(){$('in').value=store[dk()]||'';chips();renderImgs()}
 $('in').addEventListener('input',()=>{const v=$('in').value;if(v.trim())store[dk()]=v;else delete store[dk()];try{localStorage.setItem(KEY,JSON.stringify(store))}catch(e){}chips();sync()});
 y.onchange=mo.onchange=()=>{fillDays(+d.value);load()};d.onchange=load;
