@@ -18,6 +18,9 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import org.json.JSONArray;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
@@ -124,6 +127,30 @@ public class MainActivity extends Activity {
                     js("window.onNativeMsg('갤러리를 열 수 없어요')");
                 }
             });
+        }
+
+        @JavascriptInterface
+        public void setPhotos(String date, String json) {
+            try {
+                JSONArray a = new JSONArray(json);
+                File dir = new File(getFilesDir(), "photos");
+                dir.mkdirs();
+                final String pre = date + "_";
+                File[] old = dir.listFiles((x, n) -> n.startsWith(pre));
+                if (old != null) for (File f : old) f.delete();
+                for (int i = 0; i < a.length(); i++) {
+                    String str = a.getString(i);
+                    byte[] bytes = Base64.decode(str.substring(str.indexOf(',') + 1), Base64.DEFAULT);
+                    Bitmap bm = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+                    if (bm == null) continue;
+                    float sc = Math.min(1f, 360f / Math.max(bm.getWidth(), bm.getHeight()));
+                    Bitmap sm = sc < 1f ? Bitmap.createScaledBitmap(bm, Math.round(bm.getWidth() * sc), Math.round(bm.getHeight() * sc), true) : bm;
+                    try (FileOutputStream o = new FileOutputStream(new File(dir, String.format("%s_%02d.jpg", date, i)))) {
+                        sm.compress(Bitmap.CompressFormat.JPEG, 80, o);
+                    }
+                }
+                WordWidget.refresh(MainActivity.this);
+            } catch (Exception e) { }
         }
 
         @JavascriptInterface

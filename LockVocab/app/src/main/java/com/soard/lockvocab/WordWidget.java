@@ -7,7 +7,12 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Typeface;
+import android.view.View;
+import java.io.File;
+import java.util.Arrays;
 import android.text.SpannableStringBuilder;
 import android.text.Spanned;
 import android.text.style.ForegroundColorSpan;
@@ -99,6 +104,22 @@ public class WordWidget extends AppWidgetProvider {
         if (sb.length() == 0) sb.append("이 날 적은 단어가 없어요");
         v.setTextViewText(R.id.d, d.format(DateTimeFormatter.ofPattern("M월 d일 (E)", Locale.KOREAN)));
         v.setTextViewText(R.id.body, sb);
+        int[] pid = {R.id.p1, R.id.p2, R.id.p3};
+        final String pre = d.toString() + "_";
+        File[] fs = new File(c.getFilesDir(), "photos").listFiles((x, nm) -> nm.startsWith(pre));
+        if (fs != null) Arrays.sort(fs);
+        int shown = 0;
+        for (int k = 0; k < 3; k++) {
+            Bitmap bm = (fs != null && k < fs.length) ? BitmapFactory.decodeFile(fs[k].getPath()) : null;
+            if (bm != null) {
+                v.setImageViewBitmap(pid[k], bm);
+                v.setViewVisibility(pid[k], View.VISIBLE);
+                shown++;
+            } else {
+                v.setViewVisibility(pid[k], View.GONE);
+            }
+        }
+        v.setViewVisibility(R.id.photos, shown > 0 ? View.VISIBLE : View.GONE);
         v.setOnClickPendingIntent(R.id.prev, pi(c, PREV, 1));
         v.setOnClickPendingIntent(R.id.next, pi(c, NEXT, 2));
         v.setOnClickPendingIntent(R.id.d, pi(c, TODAY, 3));

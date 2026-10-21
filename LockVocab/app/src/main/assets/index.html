@@ -24,7 +24,7 @@ ol{padding-left:20px;color:var(--sub);font-size:.92rem}
 </style>
 </head>
 <body>
-<h1>잠금화면 단어장 <small style="font-weight:400;color:var(--sub)">v5</small></h1>
+<h1>잠금화면 단어장 <small style="font-weight:400;color:var(--sub)">v6</small></h1>
 <p class="s">한 줄에 하나씩 <b>단어 | 뜻 | 예문</b> 형식으로 적으세요. 뜻과 예문은 생략해도 돼요. 입력한 내용은 이 기기에 자동 저장돼요.</p>
 <div class="row"><select id="y"></select>년 <select id="mo"></select>월 <select id="d"></select>일</div>
 <div id="days" class="row" style="margin-top:0"></div>
@@ -62,6 +62,10 @@ function shrink(f){return new Promise((res,rej)=>{const fr=new FileReader();fr.o
 $('addimg').onclick=()=>{if(window.Android&&Android.pickImages){$('pmsg').textContent='갤러리를 여는 중...';Android.pickImages()}else $('file').click()};
 window.onNativeImage=u=>insertImg(u);
 window.onNativeMsg=t=>{$('pmsg').textContent=t};
+let pc=0;
+function srcsOf(h){const r=[],re=/<img[^>]*src="([^"]+)"/g;let m;while((m=re.exec(h)))r.push(m[1]);return r}
+function syncPhotos(k,l){try{if(window.Android&&Android.setPhotos)Android.setPhotos(k,JSON.stringify(l))}catch(e){}}
+function photoSync(){const l=[...ed.querySelectorAll('img')].map(i=>i.src);syncPhotos(dk(),l);pc=l.length}
 const ed=$('in');let rng=null,htm={};
 try{htm=JSON.parse(localStorage.getItem('lockvocab_html')||'{}')}catch(e){}
 const esc=t=>t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -73,16 +77,17 @@ if(t.trim()||has)htm[k]=cleanHtml();else delete htm[k];
 try{localStorage.setItem(KEY,JSON.stringify(store));localStorage.setItem('lockvocab_html',JSON.stringify(htm))}catch(e){$('pmsg').textContent='저장 공간이 가득 찼어요. 사진을 지워 주세요.'}}
 function insertImg(u){const im=new Image();im.src=u;ed.focus();const s=getSelection();s.removeAllRanges();
 if(rng&&ed.contains(rng.startContainer))s.addRange(rng);else{const q=document.createRange();q.selectNodeContents(ed);q.collapse(false);s.addRange(q)}
-const r=s.getRangeAt(0);r.deleteContents();const br=document.createElement('br');r.insertNode(br);r.insertNode(im);r.setStartAfter(br);r.collapse(true);s.removeAllRanges();s.addRange(r);rng=r.cloneRange();persist();chips();sync()}
+const r=s.getRangeAt(0);r.deleteContents();const br=document.createElement('br');r.insertNode(br);r.insertNode(im);r.setStartAfter(br);r.collapse(true);s.removeAllRanges();s.addRange(r);rng=r.cloneRange();persist();chips();sync();photoSync()}
 $('addimg').onmousedown=e=>e.preventDefault();
 ed.addEventListener('paste',e=>{e.preventDefault();document.execCommand('insertText',false,e.clipboardData.getData('text/plain'))});
-ed.addEventListener('click',e=>{const im=e.target;if(im.tagName!=='IMG')return;if(im.dataset.s){im.remove();persist();chips();sync()}else{im.dataset.s=1;im.className='del';$('pmsg').textContent='한 번 더 누르면 사진이 지워져요';setTimeout(()=>{delete im.dataset.s;im.className=''},2500)}});
+ed.addEventListener('click',e=>{const im=e.target;if(im.tagName!=='IMG')return;if(im.dataset.s){im.remove();persist();chips();sync();photoSync()}else{im.dataset.s=1;im.className='del';$('pmsg').textContent='한 번 더 누르면 사진이 지워져요';setTimeout(()=>{delete im.dataset.s;im.className=''},2500)}});
 $('file').onchange=async e=>{const pm=$('pmsg'),fs=[...e.target.files];pm.textContent=fs.length?`사진 ${fs.length}장 처리 중...`:'선택된 사진이 없어요';let n=0;for(const f of fs){try{insertImg(await shrink(f));n++}catch(err){pm.textContent='실패: '+err.message}}e.target.value='';if(n)pm.textContent=`${n}장 넣었어요`};
-function load(){const k=dk();ed.innerHTML=htm[k]!==undefined?htm[k]:esc(store[k]||'').replace(/\n/g,'<br>');chips()}
-ed.addEventListener('input',()=>{persist();chips();sync()});
+function load(){const k=dk();ed.innerHTML=htm[k]!==undefined?htm[k]:esc(store[k]||'').replace(/\n/g,'<br>');pc=ed.querySelectorAll('img').length;chips()}
+ed.addEventListener('input',()=>{persist();chips();sync();if(ed.querySelectorAll('img').length!==pc)photoSync()});
 y.onchange=mo.onchange=()=>{fillDays(+d.value);load()};d.onchange=load;
 function lines(){const ks=$('sc').value==='1'?[dk()]:Object.keys(store).sort();return ks.map(k=>store[k]||'').join('\n')}
 function sync(){try{if(window.Android&&Android.setWords)Android.setWords(JSON.stringify(store))}catch(e){}}
+Object.keys(htm).forEach(k=>{const l=srcsOf(htm[k]);if(l.length)syncPhotos(k,l)});
 sync();load();
 const FONT='"Noto Sans KR","Noto Sans CJK JP","Noto Sans JP",sans-serif';
 function parse(){return lines().split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{const p=l.split('|').map(s=>s.trim());return{w:p[0],m:p[1]||'',e:p[2]||''}})}
