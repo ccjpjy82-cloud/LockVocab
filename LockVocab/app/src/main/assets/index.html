@@ -28,10 +28,9 @@ ol{padding-left:20px;color:var(--sub);font-size:.92rem}
 </style>
 </head>
 <body>
-<h1>잠금화면 단어장 <small style="font-weight:400;color:var(--sub)">v7</small></h1>
+<h1>잠금화면 단어장 <small style="font-weight:400;color:var(--sub)">v8</small></h1>
 <p class="s">한 줄에 하나씩 <b>단어 | 뜻 | 예문</b> 형식으로 적으세요. 뜻과 예문은 생략해도 돼요. 입력한 내용은 이 기기에 자동 저장돼요.</p>
 <div class="row"><select id="y"></select>년 <select id="mo"></select>월 <select id="d"></select>일</div>
-<div id="days" class="row" style="margin-top:0"></div>
 <div id="rem"></div>
 <div id="in" contenteditable="true" data-ph="ephemeral | 덧없는 | Fame is ephemeral."></div>
 <div class="row"><button id="addimg">📷 사진 추가</button><input type="file" id="file" accept="image/*" multiple hidden></div>
@@ -66,8 +65,7 @@ function fillDays(keep){const n=new Date(+y.value,+mo.value,0).getDate();d.inner
 y.value=now.getFullYear();mo.value=now.getMonth()+1;fillDays(now.getDate());
 let store={};
 try{const r=localStorage.getItem(KEY);if(r){try{store=JSON.parse(r);if(!store||typeof store!=='object')throw 0}catch(e){store={[dk()]:r}}}}catch(e){}
-function chips(){const c=$('days');c.innerHTML='';allKeys().sort().reverse().forEach(k=>{const[a,b,e]=k.split('-').map(Number),n=allText(k).split('\n').filter(s=>s.trim()).length;
-const bt=document.createElement('button');bt.textContent=`${b}/${e} (${n})`;bt.style.padding='4px 10px';bt.onclick=()=>{y.value=a;mo.value=b;fillDays(e);load()};c.appendChild(bt)})}
+function chips(){[...d.options].forEach(o=>{const k=`${y.value}-${p2(mo.value)}-${p2(o.value)}`;o.textContent=o.value+(allText(k)?' •':'')})}
 function shrink(f){return new Promise((res,rej)=>{const fr=new FileReader();fr.onerror=()=>rej(new Error('파일을 읽지 못했어요'));fr.onload=()=>{const im=new Image();im.onload=()=>{try{const s=Math.min(1,800/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*s);c.height=Math.round(im.height*s);c.getContext('2d').drawImage(im,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',.75))}catch(e){rej(e)}};im.onerror=()=>rej(new Error('이 사진 형식은 읽을 수 없어요'));im.src=fr.result};fr.readAsDataURL(f)})}
 $('addimg').onclick=()=>{if(window.Android&&Android.pickImages){$('pmsg').textContent='갤러리를 여는 중...';Android.pickImages()}else $('file').click()};
 window.onNativeImage=u=>insertImg(u);
